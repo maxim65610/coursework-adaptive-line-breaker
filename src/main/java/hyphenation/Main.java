@@ -5,10 +5,7 @@ import hyphenation.api.Hyphenator;
 import hyphenation.api.UnicodeAnalyzer;
 import hyphenation.api.WidthMeasurer;
 import hyphenation.api.WordTokenizer;
-import hyphenation.impl.AwtWidthMeasurer;
-import hyphenation.impl.SimpleRuEnHyphenator;
-import hyphenation.impl.SimpleUnicodeAnalyzer;
-import hyphenation.impl.SimpleWordTokenizer;
+import hyphenation.impl.*;
 import hyphenation.model.BreakResult;
 import hyphenation.model.Segment;
 
@@ -22,7 +19,7 @@ public class Main {
     public static void main(String[] args) {
         UnicodeAnalyzer unicodeAnalyzer = new SimpleUnicodeAnalyzer();
         WordTokenizer tokenizer = new SimpleWordTokenizer();
-        Hyphenator hyphenator = new SimpleRuEnHyphenator();
+        Hyphenator hyphenator = new KnuthLiangHyphenator();
         WidthMeasurer widthMeasurer = new AwtWidthMeasurer();
 
         AdaptiveLineBreaker breaker = new AdaptiveLineBreaker(
@@ -32,10 +29,10 @@ public class Main {
                 widthMeasurer
         );
 
-        String text = "Разработка алгоритма адаптивного переноса слов для систем верстки";
+        String text = "алгоритм";
         Font font = new Font("Serif", Font.PLAIN, 18);
         FontRenderContext frc = new FontRenderContext(new AffineTransform(), true, true);
-        float maxWidth = 250.0f;
+        float maxWidth = 70.0f;
         Locale locale = new Locale("ru");
 
         BreakResult result = breaker.breakText(text, font, frc, maxWidth, locale);
