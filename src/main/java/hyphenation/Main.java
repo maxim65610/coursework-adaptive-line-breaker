@@ -29,10 +29,10 @@ public class Main {
                 widthMeasurer
         );
 
-        String text = "алгоритм";
+        String text = "я алгоритм переноса!!!!!!";
         Font font = new Font("Serif", Font.PLAIN, 18);
         FontRenderContext frc = new FontRenderContext(new AffineTransform(), true, true);
-        float maxWidth = 70.0f;
+        float maxWidth = 60.0f;
         Locale locale = new Locale("ru");
 
         BreakResult result = breaker.breakText(text, font, frc, maxWidth, locale);
