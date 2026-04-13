@@ -1,70 +1,69 @@
 package hyphenation.impl;
 
 import hyphenation.api.Hyphenator;
+import hyphenation.model.HyphenPattern;
+import hyphenation.model.HyphenPatternSet;
 import hyphenation.model.HyphenPoint;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class KnuthLiangHyphenator implements Hyphenator {
 
     private static final int MIN_PART_LENGTH = 2;
+    private static final int WORD_BOUNDARY = '.';
 
-    private static final String[] RU_PATTERNS = {
-            "а1", "б1", "в1", "г1", "д1", "е1", "ё1", "ж1", "з1", "и1", "й1", "к1", "л1", "м1",
-            "н1", "о1", "п1", "р1", "с1", "т1", "у1", "ф1", "х1", "ц1", "ч1", "ш1", "щ1", "ъ1",
-            "ы1", "ь1", "э1", "ю1", "я1",
-            "2б", "2в", "2г", "2д", "2ж", "2з", "2к", "2л", "2м", "2н", "2п", "2р", "2с", "2т",
-            "2ф", "2х", "2ц", "2ч", "2ш", "2щ", "2ъ", "2ь"
+    private final HyphenPatternRepository patternRepository;
 
-    };
-
-    private static final String[] EN_PATTERNS = {
-            "1a", "1e", "1i", "1o", "1u", "1y", "2b", "2c", "2d", "2f", "2g", "2h", "2j", "2k",
-            "2l", "2m", "2n", "2p", "2q", "2r", "2s", "2t", "2v", "2w", "2x", "2z"
-    };
-
-    private static final Map<String, List<Integer>> EXCEPTIONS = new HashMap<>();
-
-    static {
-
-        EXCEPTIONS.put("алгоритм",     List.of(2, 4));
-        EXCEPTIONS.put("компьютер",    List.of(3, 6));
-
-        EXCEPTIONS.put("computer",     List.of(3));
-        EXCEPTIONS.put("information",  List.of(2, 5, 7));
+    public KnuthLiangHyphenator() {
+        this.patternRepository = new HyphenPatternRepository();
     }
 
     @Override
     public List<HyphenPoint> findHyphenPoints(String word, int wordStartOffset, Locale locale) {
         List<HyphenPoint> result = new ArrayList<>();
 
-        if (word == null || word.length() < MIN_PART_LENGTH * 2) {
+        if (word == null || word.isEmpty()) {
             return result;
         }
 
-        String lower = word.toLowerCase(locale);
-        String language = locale.getLanguage();
+        Locale safeLocale = (locale == null) ? Locale.ROOT : locale;
+        String lowerWord = word.toLowerCase(safeLocale);
 
-        List<Integer> exc = EXCEPTIONS.get(lower);
-        if (exc != null) {
-            for (int pos : exc) {
-                int utf16Offset = word.offsetByCodePoints(0, pos);
-                result.add(new HyphenPoint(wordStartOffset + utf16Offset, true, 10));
-            }
+        int[] codePointOffsets = toCodePointOffsets(word);
+        int codePointCount = codePointOffsets.length - 1;
+
+        if (codePointCount < MIN_PART_LENGTH * 2) {
             return result;
         }
 
-        String[] patterns = "ru".equals(language) ? RU_PATTERNS : EN_PATTERNS;
+        HyphenPatternSet patternSet = patternRepository.getPatternSet(safeLocale);
 
-        int[] levels = computeLevels(lower, patterns);
+        List<HyphenPoint> exceptionPoints = buildExceptionPoints(
+                lowerWord,
+                wordStartOffset,
+                codePointOffsets,
+                codePointCount,
+                patternSet.getExceptions()
+        );
 
-        for (int i = MIN_PART_LENGTH; i < lower.length() - MIN_PART_LENGTH; i++) {
-            if (levels[i + 1] % 2 == 1) {
-                int utf16Offset = word.offsetByCodePoints(0, i);
+        if (!exceptionPoints.isEmpty()) {
+            return exceptionPoints;
+        }
+
+        int[] wordCodePoints = toCodePoints(lowerWord);
+        int[] levels = computeLevels(wordCodePoints, patternSet.getPatterns());
+
+        for (int cpIndex = MIN_PART_LENGTH; cpIndex <= codePointCount - MIN_PART_LENGTH; cpIndex++) {
+            int levelIndex = cpIndex + 1; // +1 из-за начальной границы '.'
+
+            if (levelIndex < levels.length && levels[levelIndex] % 2 == 1) {
                 result.add(new HyphenPoint(
-                        wordStartOffset + utf16Offset,
+                        wordStartOffset + codePointOffsets[cpIndex],
                         true,
-                        10 - levels[i + 1]
+                        10 - levels[levelIndex]
                 ));
             }
         }
@@ -72,45 +71,103 @@ public class KnuthLiangHyphenator implements Hyphenator {
         return result;
     }
 
-    private int[] computeLevels(String lowerWord, String[] patterns) {
-        String dotted = "." + lowerWord + ".";
-        int[] levels = new int[dotted.length()];
+    private List<HyphenPoint> buildExceptionPoints(
+            String lowerWord,
+            int wordStartOffset,
+            int[] codePointOffsets,
+            int codePointCount,
+            Map<String, List<Integer>> exceptions
+    ) {
+        List<HyphenPoint> result = new ArrayList<>();
 
-        for (String pat : patterns) {
-            int patLen = pat.length();
-            for (int i = 0; i <= dotted.length() - patLen; i++) {
-                if (isPatternMatch(dotted, i, pat)) {
-                    applyPattern(levels, i, pat);
+        List<Integer> exceptionPositions = exceptions.get(lowerWord);
+        if (exceptionPositions == null) {
+            return result;
+        }
+
+        for (int point : exceptionPositions) {
+            if (isValidHyphenPosition(point, codePointCount)) {
+                result.add(new HyphenPoint(
+                        wordStartOffset + codePointOffsets[point],
+                        true,
+                        10
+                ));
+            }
+        }
+
+        return result;
+    }
+
+    private boolean isValidHyphenPosition(int codePointIndex, int codePointCount) {
+        return codePointIndex >= MIN_PART_LENGTH
+                && codePointIndex <= codePointCount - MIN_PART_LENGTH;
+    }
+
+    private int[] computeLevels(int[] wordCodePoints, List<HyphenPattern> patterns) {
+        int[] dottedWord = addWordBoundaries(wordCodePoints);
+        int[] levels = new int[dottedWord.length + 1];
+
+        for (HyphenPattern pattern : patterns) {
+            int[] patternLetters = pattern.getLetters();
+            int[] patternLevels = pattern.getLevels();
+
+            if (patternLetters.length == 0) {
+                continue;
+            }
+
+            for (int start = 0; start <= dottedWord.length - patternLetters.length; start++) {
+                if (matchesAt(dottedWord, start, patternLetters)) {
+                    applyPattern(levels, start, patternLevels);
                 }
             }
         }
+
         return levels;
     }
 
-    private boolean isPatternMatch(String dotted, int start, String pat) {
-        int j = 0;
-        for (int k = 0; k < pat.length(); k++) {
-            char pc = pat.charAt(k);
-            if (Character.isDigit(pc)) {
-                continue;
-            }
-            if (start + j >= dotted.length() || dotted.charAt(start + j) != pc) {
+    private boolean matchesAt(int[] text, int start, int[] patternLetters) {
+        for (int i = 0; i < patternLetters.length; i++) {
+            if (text[start + i] != patternLetters[i]) {
                 return false;
             }
-            j++;
         }
         return true;
     }
 
-    private void applyPattern(int[] levels, int start, String pat) {
-        int j = 0;
-        for (int k = 0; k < pat.length(); k++) {
-            char pc = pat.charAt(k);
-            if (Character.isDigit(pc)) {
-                levels[start + j] = Math.max(levels[start + j], pc - '0');
-            } else {
-                j++;
-            }
+    private void applyPattern(int[] levels, int start, int[] patternLevels) {
+        for (int i = 0; i < patternLevels.length; i++) {
+            levels[start + i] = Math.max(levels[start + i], patternLevels[i]);
         }
+    }
+
+    private int[] addWordBoundaries(int[] wordCodePoints) {
+        int[] result = new int[wordCodePoints.length + 2];
+        result[0] = WORD_BOUNDARY;
+        System.arraycopy(wordCodePoints, 0, result, 1, wordCodePoints.length);
+        result[result.length - 1] = WORD_BOUNDARY;
+        return result;
+    }
+
+    private int[] toCodePoints(String text) {
+        return text.codePoints().toArray();
+    }
+
+    private int[] toCodePointOffsets(String word) {
+        List<Integer> offsets = new ArrayList<>();
+        offsets.add(0);
+
+        int utf16Index = 0;
+        while (utf16Index < word.length()) {
+            int codePoint = word.codePointAt(utf16Index);
+            utf16Index += Character.charCount(codePoint);
+            offsets.add(utf16Index);
+        }
+
+        int[] result = new int[offsets.size()];
+        for (int i = 0; i < offsets.size(); i++) {
+            result[i] = offsets.get(i);
+        }
+
+        return result;
     }
 }
