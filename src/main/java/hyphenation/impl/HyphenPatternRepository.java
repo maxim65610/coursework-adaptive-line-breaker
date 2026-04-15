@@ -18,12 +18,15 @@ public class HyphenPatternRepository {
 
     private static final String DEFAULT_LANGUAGE = "en";
     private static final String BASE_PATH = "hyphenation/";
+    private static final String TEX_BASE_PATH = "hyphenation/tex/";
 
     private final HyphenPatternParser parser;
+    private final TexPatternLoader texPatternLoader;
     private final Map<String, HyphenPatternSet> patternSets;
 
     public HyphenPatternRepository() {
         this.parser = new HyphenPatternParser();
+        this.texPatternLoader = new TexPatternLoader(parser);
         this.patternSets = new HashMap<>();
 
         patternSets.put("ru", loadPatternSet("ru"));
@@ -42,35 +45,20 @@ public class HyphenPatternRepository {
     }
 
     private HyphenPatternSet loadPatternSet(String language) {
-        String patternsResource = BASE_PATH + language + "-patterns.txt";
+        String texPatternsResource = getTexPatternResource(language);
         String exceptionsResource = BASE_PATH + language + "-exceptions.txt";
 
-        List<HyphenPattern> patterns = loadPatterns(patternsResource);
+        List<HyphenPattern> patterns = texPatternLoader.loadPatterns(texPatternsResource);
         Map<String, List<Integer>> exceptions = loadExceptions(exceptionsResource);
 
         return new HyphenPatternSet(patterns, exceptions);
     }
 
-    private List<HyphenPattern> loadPatterns(String resourcePath) {
-        List<HyphenPattern> patterns = new ArrayList<>();
-
-        try (BufferedReader reader = openResource(resourcePath)) {
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-                String trimmed = normalizeLine(line);
-
-                if (trimmed.isEmpty()) {
-                    continue;
-                }
-
-                patterns.add(parser.parse(trimmed));
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load hyphenation patterns from: " + resourcePath, e);
+    private String getTexPatternResource(String language) {
+        if ("ru".equals(language)) {
+            return TEX_BASE_PATH + "hyph-ru.tex";
         }
-
-        return patterns;
+        return TEX_BASE_PATH + "hyph-en-us.tex";
     }
 
     private Map<String, List<Integer>> loadExceptions(String resourcePath) {
