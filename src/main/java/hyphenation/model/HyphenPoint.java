@@ -1,5 +1,12 @@
 package hyphenation.model;
 
+/**
+ * Одна допустимая точка переноса внутри слова.
+ * Внутри хранится:
+ * - utf16Offset — позиция переноса в координатах Java-строки
+ * - appendHyphen — нужно ли добавлять дефис при переносе
+ * - penalty — штраф / стоимость этой точки переноса
+ */
 public class HyphenPoint {
     private final int utf16Offset;
     private final boolean appendHyphen;

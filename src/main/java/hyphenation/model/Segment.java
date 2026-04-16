@@ -1,6 +1,10 @@
 package hyphenation.model;
 
-
+/**
+ * Один готовый сегмент строки после разбиения.
+ * Хранит границы сегмента, его видимый текст,
+ * ширину и тип разрыва, которым он завершился.
+ */
 public class Segment {
     private final int startUtf16;
     private final int endUtf16;

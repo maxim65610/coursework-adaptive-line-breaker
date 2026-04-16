@@ -1,5 +1,8 @@
 package hyphenation.model;
 
+/**
+ * Один допустимый кандидат разрыва строки.
+ */
 public class BreakCandidate {
     private final int utf16Offset;
     private final BreakType type;

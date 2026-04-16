@@ -1,5 +1,10 @@
 package hyphenation.model;
 
+/**
+ * Один токен исходного текста.
+ * Токен — это фрагмент строки:
+ * слово, пробел, пунктуация, перевод строки и т.д.
+ */
 public class TextToken {
     private final TokenType type;
     private final int startUtf16;

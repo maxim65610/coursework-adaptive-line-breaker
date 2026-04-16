@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+/** Класс, который собирает все допустимые точки разрыва:
+после пробелов, после пунктуации, по переносу внутри слова и т.д.*/
 public class BreakCandidateCollector {
 
     private final Hyphenator hyphenator;
@@ -20,6 +22,15 @@ public class BreakCandidateCollector {
         this.hyphenator = hyphenator;
     }
 
+    /**
+     * Собирает все допустимые точки разрыва строки.
+     *
+     * На вход получает:
+     * - tokens: результат токенизации текста
+     * - locale: язык, нужный для правил переноса
+     * - safeOffsets: безопасные UTF-16 позиции, где вообще можно резать строку
+     * - textLength: длину исходного текста
+     */
     public List<BreakCandidate> collect(
             List<TextToken> tokens,
             Locale locale,
@@ -27,9 +38,15 @@ public class BreakCandidateCollector {
             int textLength
     ) {
         List<BreakCandidate> candidates = new ArrayList<>();
+        // Добавляем стартовую позицию 0 как технический кандидат.
+        // Она нужна как опорная точка для алгоритма построения сегментов.
         candidates.add(new BreakCandidate(0, BreakType.EXPLICIT_BREAK, false, 0));
 
+        // Проходим по всем токенам и в зависимости от их типа
+        // добавляем допустимые точки разрыва.
         for (TextToken token : tokens) {
+
+            // После пробела можно завершить сегмент.
             if (token.getType() == TokenType.SPACE) {
                 addIfSafe(
                         candidates,
@@ -41,7 +58,11 @@ public class BreakCandidateCollector {
                                 0
                         )
                 );
-            } else if (token.getType() == TokenType.EXPLICIT_BREAK) {
+            }
+            // Явный перевод строки — это принудительная точка разрыва.
+            // Для него задаётся очень "сильный" штраф через Integer.MIN_VALUE,
+            // чтобы такой разрыв имел особый приоритет в логике алгоритма(на будущее).
+            else if (token.getType() == TokenType.EXPLICIT_BREAK) {
                 addIfSafe(
                         candidates,
                         safeOffsets,
@@ -52,13 +73,17 @@ public class BreakCandidateCollector {
                                 Integer.MIN_VALUE
                         )
                 );
-            } else if (token.getType() == TokenType.WORD) {
+            }
+            // Если токен — слово, то возможные точки разрыва ищутся через Hyphenator.
+            // Здесь подключаются языковые правила переноса.
+            else if (token.getType() == TokenType.WORD) {
                 List<HyphenPoint> points = hyphenator.findHyphenPoints(
                         token.getText(),
                         token.getStartUtf16(),
                         locale
                 );
 
+                // Каждую найденную точку переноса превращаем в BreakCandidate.
                 for (HyphenPoint point : points) {
                     addIfSafe(
                             candidates,
@@ -71,7 +96,9 @@ public class BreakCandidateCollector {
                             )
                     );
                 }
-            } else if (token.getType() == TokenType.PUNCT) {
+            }
+            // После знаков пунктуации тоже можно завершать сегмент.
+            else if (token.getType() == TokenType.PUNCT) {
                 addIfSafe(
                         candidates,
                         safeOffsets,
@@ -85,10 +112,17 @@ public class BreakCandidateCollector {
             }
         }
 
+        // Всегда добавляем конец текста как допустимую точку.
+        // Это нужно, чтобы алгоритм мог завершить последний сегмент.
         candidates.add(new BreakCandidate(textLength, BreakType.END_OF_TEXT, false, 0));
         return candidates;
     }
 
+    /**
+     * Добавляет кандидата только если его позиция безопасна с точки зрения кодировки.
+     * Это защита от разрезания строки в некорректной Unicode-позиции,
+     * например в середине суррогатной пары.
+     */
     private void addIfSafe(
             List<BreakCandidate> candidates,
             Set<Integer> safeOffsets,

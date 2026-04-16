@@ -7,6 +7,18 @@ import hyphenation.model.TokenType;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Базовый токенизатор текста.
+ *
+ * Разбивает строку на последовательность токенов:
+ * - слова
+ * - пробелы
+ * - пунктуацию
+ * - управляющие символы
+ * - явные переводы строки
+ *
+ * Работает по Unicode code points, а не по char.
+ */
 public class SimpleWordTokenizer implements WordTokenizer {
 
     @Override

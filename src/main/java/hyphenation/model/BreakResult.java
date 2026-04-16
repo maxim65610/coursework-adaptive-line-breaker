@@ -2,6 +2,13 @@ package hyphenation.model;
 
 import java.util.List;
 
+
+/**
+ * Итог работы алгоритма разбиения текста.
+ * Хранит:
+ * - готовые сегменты
+ * - исходные токены текста
+ */
 public class BreakResult {
     private final List<Segment> segments;
     private final List<TextToken> tokens;

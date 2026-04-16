@@ -7,6 +7,14 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * Базовый анализатор безопасных Unicode-границ.
+ *
+ * Возвращает набор UTF-16 позиций, в которых строку можно
+ * безопасно разрезать без повреждения Unicode-символов.
+ *
+ * Использует стандартный BreakIterator Java.
+ */
 public class SimpleUnicodeAnalyzer implements UnicodeAnalyzer {
 
     @Override
