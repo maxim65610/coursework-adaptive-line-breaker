@@ -17,10 +17,17 @@ import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
 import java.util.Locale;
 
+/**
+ * Сервис приложения.
+ * Подготавливает параметры и запускает алгоритм разбиения.
+ */
 public class LineBreakerApplicationService {
 
     private final AdaptiveLineBreaker breaker;
 
+    /**
+     * Создаёт сервис и собирает зависимости алгоритма.
+     */
     public LineBreakerApplicationService() {
         UnicodeAnalyzer unicodeAnalyzer = new SimpleUnicodeAnalyzer();
         WordTokenizer tokenizer = new SimpleWordTokenizer();
@@ -35,6 +42,9 @@ public class LineBreakerApplicationService {
         );
     }
 
+    /**
+     * Запускает разбиение текста и возвращает результат в виде строки.
+     */
     public String process(
             String text,
             String fontName,
@@ -50,6 +60,9 @@ public class LineBreakerApplicationService {
         return buildOutput(text, fontName, fontSize, maxWidth, language, result);
     }
 
+    /**
+     * Формирует текстовый вывод результата для интерфейса.
+     */
     private String buildOutput(
             String sourceText,
             String fontName,

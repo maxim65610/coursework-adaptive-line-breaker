@@ -22,6 +22,10 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 
+/**
+ * Главное окно приложения.
+ * Отвечает за ввод параметров и вывод результата.
+ */
 public class LineBreakerFrame extends JFrame {
 
     private final LineBreakerApplicationService service;
@@ -34,6 +38,9 @@ public class LineBreakerFrame extends JFrame {
     private final JSpinner maxWidthSpinner;
     private final JComboBox<String> localeComboBox;
 
+    /**
+     * Создаёт и настраивает главное окно приложения.
+     */
     public LineBreakerFrame() {
         super("Adaptive Line Breaker");
 
@@ -130,6 +137,10 @@ public class LineBreakerFrame extends JFrame {
         runBreak();
     }
 
+    /**
+     * Считывает параметры из интерфейса,
+     * запускает разбиение и показывает результат.
+     */
     private void runBreak() {
         try {
             String text = inputArea.getText();
