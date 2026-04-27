@@ -93,6 +93,8 @@ public class KnuthLiangHyphenator implements Hyphenator {
                 patternSet.getExceptions()
         );
 
+        // TODO: тут ошибка в логике: если слово в словаре исключений, но не прошли проверку на длину частей,
+        // то получим пустой список позиций разрыва, но уходить на проверку по шаблонам не следует (ибо слово - исключение)
         if (!exceptionPoints.isEmpty()) {
             return exceptionPoints;
         }
@@ -177,6 +179,12 @@ public class KnuthLiangHyphenator implements Hyphenator {
      */
     private int[] computeLevels(int[] wordCodePoints, List<HyphenPattern> patterns) {
 
+    	// TODO: напрашивается реализация на конечном автомате:
+    	// 1. По набору шаблонов строим распознающий префиксный автомат, как в алгоритме поиска подстроки в строке
+    	// (из состояния автомата переходы ведут в максимальный суффикс, являющийся префиксом какого-либо из шаблонов
+    	// 2. В вершинах автомата есть информация о том, какие из шаблонов "заканчиваются" в вершине (т.е. нашли шаблон)
+    	// Таким способом можно избавиться от постоянного сканирования списка шаблонов (их достаточно много)
+    	
         // Превращаем слово в ".word."
         int[] dottedWord = addWordBoundaries(wordCodePoints);
 
@@ -189,6 +197,7 @@ public class KnuthLiangHyphenator implements Hyphenator {
             int[] patternLetters = pattern.getLetters();
             int[] patternLevels = pattern.getLevels();
 
+            // TODO: лучше сразу же при загрузке шаблонов выполнить эту фильтрацию
             if (patternLetters.length == 0) {
                 continue;
             }
