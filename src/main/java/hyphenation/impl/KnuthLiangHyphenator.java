@@ -1,9 +1,7 @@
 package hyphenation.impl;
 
 import hyphenation.api.Hyphenator;
-import hyphenation.model.HyphenPattern;
-import hyphenation.model.HyphenPatternSet;
-import hyphenation.model.HyphenPoint;
+import hyphenation.model.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,18 +83,16 @@ public class KnuthLiangHyphenator implements Hyphenator {
 
         // Сначала проверяем словарь исключений.
         // Если слово найдено там, именно эти позиции имеют приоритет над паттернами.
-        List<HyphenPoint> exceptionPoints = buildExceptionPoints(
-                lowerWord,
-                wordStartOffset,
-                codePointOffsets,
-                codePointCount,
-                patternSet.getExceptions()
-        );
+        Map<String, List<Integer>> exceptions = patternSet.getExceptions();
 
-        // TODO: тут ошибка в логике: если слово в словаре исключений, но не прошли проверку на длину частей,
-        // то получим пустой список позиций разрыва, но уходить на проверку по шаблонам не следует (ибо слово - исключение)
-        if (!exceptionPoints.isEmpty()) {
-            return exceptionPoints;
+        if (exceptions.containsKey(lowerWord)) {
+            return buildExceptionPoints(
+                    lowerWord,
+                    wordStartOffset,
+                    codePointOffsets,
+                    codePointCount,
+                    exceptions
+            );
         }
 
         // Если слово не найдено в исключениях, работаем через паттерны.
@@ -105,7 +101,7 @@ public class KnuthLiangHyphenator implements Hyphenator {
 
         // Вычисляем массив уровней переноса.
         // Здесь происходит "наложение" всех паттернов на слово.
-        int[] levels = computeLevels(wordCodePoints, patternSet.getPatterns());
+        int[] levels = computeLevels(wordCodePoints, patternSet.getPatternTrie());
 
         // Проходим по допустимым позициям переноса.
         // cpIndex — это позиция между code points.
@@ -169,22 +165,16 @@ public class KnuthLiangHyphenator implements Hyphenator {
     }
 
     /**
-     * Вычисляет массив уровней переноса для слова.
-     * Идея алгоритма:
-     * 1. Добавляем к слову границы: ".word."
-     * 2. Для каждого паттерна ищем все совпадения в слове
-     * 3. Если совпадение найдено — накладываем уровни паттерна на общий массив
-     * 4. В каждой позиции остаётся максимум из всех уровней
-     * 5. Нечётные уровни = разрешённый перенос
+     * Вычисляет массив уровней переноса для слова с использованием префиксного дерева паттернов.
+     * Логика:
+     * 1. Добавляем к слову фиктивные границы: ".word."
+     * 2. Для каждой стартовой позиции в слове начинаем обход trie от корня
+     * 3. Идём вправо по символам слова, пока в trie существует соответствующий переход
+     * 4. Если в текущем узле заканчиваются паттерны, накладываем их уровни на общий массив
+     * 5. В каждой позиции сохраняется максимальный уровень
+     * 6. Нечётные уровни означают допустимые точки переноса
      */
-    private int[] computeLevels(int[] wordCodePoints, List<HyphenPattern> patterns) {
-
-    	// TODO: напрашивается реализация на конечном автомате:
-    	// 1. По набору шаблонов строим распознающий префиксный автомат, как в алгоритме поиска подстроки в строке
-    	// (из состояния автомата переходы ведут в максимальный суффикс, являющийся префиксом какого-либо из шаблонов
-    	// 2. В вершинах автомата есть информация о том, какие из шаблонов "заканчиваются" в вершине (т.е. нашли шаблон)
-    	// Таким способом можно избавиться от постоянного сканирования списка шаблонов (их достаточно много)
-    	
+    private int[] computeLevels(int[] wordCodePoints, HyphenPatternTrie patternTrie) {
         // Превращаем слово в ".word."
         int[] dottedWord = addWordBoundaries(wordCodePoints);
 
@@ -192,20 +182,26 @@ public class KnuthLiangHyphenator implements Hyphenator {
         // поэтому количество позиций = длина массива символов + 1.
         int[] levels = new int[dottedWord.length + 1];
 
-        // Перебираем все паттерны языка.
-        for (HyphenPattern pattern : patterns) {
-            int[] patternLetters = pattern.getLetters();
-            int[] patternLevels = pattern.getLevels();
+        // Перебираем все возможные стартовые позиции в слове.
+        for (int start = 0; start < dottedWord.length; start++) {
+            HyphenPatternTrieNode currentNode = patternTrie.getRoot();
 
-            // TODO: лучше сразу же при загрузке шаблонов выполнить эту фильтрацию
-            if (patternLetters.length == 0) {
-                continue;
-            }
+            // Идём вправо от текущей стартовой позиции,
+            // пока в trie существует переход по очередному символу слова.
+            for (int pos = start; pos < dottedWord.length; pos++) {
+                int letter = dottedWord[pos];
 
-            // Пытаемся наложить паттерн на каждую возможную позицию в слове.
-            for (int start = 0; start <= dottedWord.length - patternLetters.length; start++) {
-                if (matchesAt(dottedWord, start, patternLetters)) {
-                    applyPattern(levels, start, patternLevels);
+                currentNode = currentNode.getChildren().get(letter);
+
+                // Если перехода нет, дальше совпадений уже не будет.
+                if (currentNode == null) {
+                    break;
+                }
+
+                // Если в текущем узле заканчиваются какие-то паттерны,
+                // значит они совпали с подстрокой слова, начинающейся в start.
+                for (HyphenPattern pattern : currentNode.getTerminalPatterns()) {
+                    applyPattern(levels, start, pattern.getLevels());
                 }
             }
         }
@@ -213,18 +209,6 @@ public class KnuthLiangHyphenator implements Hyphenator {
         return levels;
     }
 
-    /**
-     * Проверяет, совпадает ли паттерн по буквам с фрагментом слова,
-     * начиная с позиции start.
-     */
-    private boolean matchesAt(int[] text, int start, int[] patternLetters) {
-        for (int i = 0; i < patternLetters.length; i++) {
-            if (text[start + i] != patternLetters[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
 
     /**
      * Накладывает уровни паттерна на общий массив уровней.

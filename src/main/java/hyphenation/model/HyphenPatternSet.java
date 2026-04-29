@@ -5,24 +5,25 @@ import java.util.Map;
 
 /**
  * Набор правил переноса для одного языка.
- * Внутри хранит:
- * - patterns — список паттернов переноса
- * - exceptions — словарь слов-исключений
+ * Хранит:
+ * - дерево паттернов переноса
+ * - словарь слов-исключений
  */
 public class HyphenPatternSet {
-    private final List<HyphenPattern> patterns;
+
+    private final HyphenPatternTrie patternTrie;
     private final Map<String, List<Integer>> exceptions;
 
     public HyphenPatternSet(
-            List<HyphenPattern> patterns,
+            HyphenPatternTrie patternTrie,
             Map<String, List<Integer>> exceptions
     ) {
-        this.patterns = patterns;
+        this.patternTrie = patternTrie;
         this.exceptions = exceptions;
     }
 
-    public List<HyphenPattern> getPatterns() {
-        return patterns;
+    public HyphenPatternTrie getPatternTrie() {
+        return patternTrie;
     }
 
     public Map<String, List<Integer>> getExceptions() {
