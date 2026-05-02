@@ -42,10 +42,6 @@ public class GreedySegmentBuilder {
             FontRenderContext frc,
             float maxWidth
     ) {
-        // Сортируем кандидаты по позиции в строке.
-        // После этого можно искать разрывы слева направо.
-    	// TODO: а нужна ли сортировка?
-        breakCandidates.sort(Comparator.comparingInt(BreakCandidate::getUtf16Offset));
 
         List<Segment> segments = new ArrayList<>();
 

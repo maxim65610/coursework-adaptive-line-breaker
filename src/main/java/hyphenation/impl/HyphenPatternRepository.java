@@ -72,6 +72,12 @@ public class HyphenPatternRepository {
         return new HyphenPatternSet(patternTrie, exceptions);
     }
 
+    /**
+     * Строит автомат паттернов переноса по списку паттернов.
+     *
+     * @param patterns список паттернов
+     * @return готовый автомат паттернов
+     */
     private HyphenPatternTrie buildPatternTrie(List<HyphenPattern> patterns) {
         HyphenPatternTrie trie = new HyphenPatternTrie();
 
@@ -79,6 +85,7 @@ public class HyphenPatternRepository {
             trie.addPattern(pattern);
         }
 
+        trie.buildFailureLinks();
         return trie;
     }
     /**
