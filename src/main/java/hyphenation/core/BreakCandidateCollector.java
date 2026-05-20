@@ -38,90 +38,50 @@ public class BreakCandidateCollector {
             int textLength
     ) {
         List<BreakCandidate> candidates = new ArrayList<>();
-        // Добавляем стартовую позицию 0 как технический кандидат.
-        // Она нужна как опорная точка для алгоритма построения сегментов.
-        candidates.add(new BreakCandidate(0, BreakType.EXPLICIT_BREAK, false, 0));
 
-        // Проходим по всем токенам и в зависимости от их типа
-        // добавляем допустимые точки разрыва.
+        candidates.add(BreakCandidate.technicalStart(0));
+
         for (TextToken token : tokens) {
-
-            // После пробела можно завершить сегмент.
             if (token.getType() == TokenType.SPACE) {
-            	// TODO: Здесь ошибка в логике. Пробельный сегмент, если он 
-            	// состоит из нескольких пробелов, рассматривается как неделимый,
-            	// а на самом деле, если он оказывается в конце строки, его можно вообще удалить
-            	// то есть позиция разрыва оказывается не в конце этого сегмента, а в начале, 
-            	// а сам пробельный сегмент после разрыва строки игнорируется.
                 addIfSafe(
                         candidates,
                         safeOffsets,
-                        // TODO: заменить конструкторы на фабричные методы (это позволит спрятать комбинации параметров внутрь)
-                        new BreakCandidate(
-                                token.getEndUtf16(),
-                                BreakType.SPACE,
-                                false,
-                                0
-                        )
+                        BreakCandidate.space(token.getStartUtf16())
                 );
-            }
-            // Явный перевод строки — это принудительная точка разрыва.
-            // Для него задаётся очень "сильный" штраф через Integer.MIN_VALUE,
-            // чтобы такой разрыв имел особый приоритет в логике алгоритма(на будущее).
-            else if (token.getType() == TokenType.EXPLICIT_BREAK) {
+            } else if (token.getType() == TokenType.EXPLICIT_BREAK) {
                 addIfSafe(
                         candidates,
                         safeOffsets,
-                        new BreakCandidate(
-                                token.getEndUtf16(),
-                                BreakType.EXPLICIT_BREAK,
-                                false,
-                                Integer.MIN_VALUE
-                        )
+                        BreakCandidate.explicitBreak(token.getEndUtf16())
                 );
-            }
-            // Если токен — слово, то возможные точки разрыва ищутся через Hyphenator.
-            // Здесь подключаются языковые правила переноса.
-            else if (token.getType() == TokenType.WORD) {
+            } else if (token.getType() == TokenType.WORD) {
                 List<HyphenPoint> points = hyphenator.findHyphenPoints(
                         token.getText(),
                         token.getStartUtf16(),
                         locale
                 );
 
-                // Каждую найденную точку переноса превращаем в BreakCandidate.
                 for (HyphenPoint point : points) {
                     addIfSafe(
                             candidates,
                             safeOffsets,
-                            new BreakCandidate(
+                            BreakCandidate.hyphenation(
                                     point.getUtf16Offset(),
-                                    BreakType.HYPHENATION,
                                     point.isAppendHyphen(),
                                     point.getPenalty()
                             )
                     );
                 }
-            }
-            // После знаков пунктуации тоже можно завершать сегмент.
-            // TODO: пунктуационные знаки нельзя отрывать от слова
-            else if (token.getType() == TokenType.PUNCT) {
+            } else if (token.getType() == TokenType.PUNCT) {
                 addIfSafe(
                         candidates,
                         safeOffsets,
-                        new BreakCandidate(
-                                token.getEndUtf16(),
-                                BreakType.PUNCT,
-                                false,
-                                1
-                        )
+                        BreakCandidate.punctuation(token.getEndUtf16())
                 );
             }
         }
 
-        // Всегда добавляем конец текста как допустимую точку.
-        // Это нужно, чтобы алгоритм мог завершить последний сегмент.
-        candidates.add(new BreakCandidate(textLength, BreakType.END_OF_TEXT, false, 0));
+        candidates.add(BreakCandidate.endOfText(textLength));
         return candidates;
     }
 

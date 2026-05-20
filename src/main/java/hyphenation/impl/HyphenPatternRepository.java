@@ -2,6 +2,7 @@ package hyphenation.impl;
 
 import hyphenation.model.HyphenPattern;
 import hyphenation.model.HyphenPatternSet;
+import hyphenation.model.HyphenPatternTrie;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -65,11 +66,28 @@ public class HyphenPatternRepository {
         String exceptionsResource = BASE_PATH + language + "-exceptions.txt";
 
         List<HyphenPattern> patterns = loadPatterns(patternsResource);
+        HyphenPatternTrie patternTrie = buildPatternTrie(patterns);
         Map<String, List<Integer>> exceptions = loadExceptions(exceptionsResource);
 
-        return new HyphenPatternSet(patterns, exceptions);
+        return new HyphenPatternSet(patternTrie, exceptions);
     }
 
+    /**
+     * Строит автомат паттернов переноса по списку паттернов.
+     *
+     * @param patterns список паттернов
+     * @return готовый автомат паттернов
+     */
+    private HyphenPatternTrie buildPatternTrie(List<HyphenPattern> patterns) {
+        HyphenPatternTrie trie = new HyphenPatternTrie();
+
+        for (HyphenPattern pattern : patterns) {
+            trie.addPattern(pattern);
+        }
+
+        trie.buildFailureLinks();
+        return trie;
+    }
     /**
      * Загружает паттерны из файла ресурсов.
      */
@@ -86,7 +104,10 @@ public class HyphenPatternRepository {
                     continue;
                 }
 
-                patterns.add(parser.parse(trimmed));
+                HyphenPattern pattern = parser.parse(trimmed);
+                if (pattern.getLetters().length > 0) {
+                    patterns.add(pattern);
+                }
             }
         } catch (IOException e) {
             throw new IllegalStateException(

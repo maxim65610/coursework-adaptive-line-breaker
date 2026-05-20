@@ -42,10 +42,6 @@ public class GreedySegmentBuilder {
             FontRenderContext frc,
             float maxWidth
     ) {
-        // Сортируем кандидаты по позиции в строке.
-        // После этого можно искать разрывы слева направо.
-    	// TODO: а нужна ли сортировка?
-        breakCandidates.sort(Comparator.comparingInt(BreakCandidate::getUtf16Offset));
 
         List<Segment> segments = new ArrayList<>();
 
@@ -151,10 +147,12 @@ public class GreedySegmentBuilder {
                     bestCandidate.getType()
             ));
 
-            // Следующий сегмент начинаем там, где закончился текущий.
-            current = bestCandidate.getUtf16Offset();
+            if (bestCandidate.getType() == BreakType.SPACE) {
+                current = skipLeadingSpaces(text, bestCandidate.getUtf16Offset());
+            } else {
+                current = bestCandidate.getUtf16Offset();
+            }
 
-            // И следующий поиск кандидатов начинаем уже после использованного кандидата.
             candidateStartIndex = bestCandidateIndex + 1;
         }
 
@@ -247,6 +245,26 @@ public class GreedySegmentBuilder {
             return text.substring(0, text.length() - 1);
         }
         return text;
+    }
+
+    /**
+     * Пропускает пробельные символы в начале следующего сегмента.
+     * Не трогает явные переводы строки.
+     */
+    private int skipLeadingSpaces(String text, int offset) {
+        int index = offset;
+
+        while (index < text.length()) {
+            int codePoint = text.codePointAt(index);
+
+            if (!Character.isWhitespace(codePoint) || codePoint == '\n' || codePoint == '\r') {
+                break;
+            }
+
+            index += Character.charCount(codePoint);
+        }
+
+        return index;
     }
 
     /**
