@@ -1,6 +1,5 @@
 package hyphenation.impl;
 
-import hyphenation.api.WordTokenizer;
 import hyphenation.model.TextToken;
 import hyphenation.model.TokenType;
 
@@ -19,7 +18,7 @@ import java.util.List;
  *
  * Работает по Unicode code points, а не по char.
  */
-public class SimpleWordTokenizer implements WordTokenizer {
+public class WordTokenizer implements hyphenation.api.WordTokenizer {
 
     @Override
     public List<TextToken> tokenize(String text) {

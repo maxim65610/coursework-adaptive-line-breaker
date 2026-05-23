@@ -1,14 +1,12 @@
 package hyphenation.ui;
 
 import hyphenation.api.Hyphenator;
-import hyphenation.api.UnicodeAnalyzer;
 import hyphenation.api.WidthMeasurer;
-import hyphenation.api.WordTokenizer;
 import hyphenation.core.AdaptiveLineBreaker;
 import hyphenation.impl.AwtWidthMeasurer;
 import hyphenation.impl.KnuthLiangHyphenator;
-import hyphenation.impl.SimpleUnicodeAnalyzer;
-import hyphenation.impl.SimpleWordTokenizer;
+import hyphenation.impl.UnicodeAnalyzer;
+import hyphenation.impl.WordTokenizer;
 import hyphenation.model.BreakResult;
 import hyphenation.model.Segment;
 
@@ -29,8 +27,8 @@ public class LineBreakerApplicationService {
      * Создаёт сервис и собирает зависимости алгоритма.
      */
     public LineBreakerApplicationService() {
-        UnicodeAnalyzer unicodeAnalyzer = new SimpleUnicodeAnalyzer();
-        WordTokenizer tokenizer = new SimpleWordTokenizer();
+        hyphenation.api.UnicodeAnalyzer unicodeAnalyzer = new UnicodeAnalyzer();
+        hyphenation.api.WordTokenizer tokenizer = new WordTokenizer();
         Hyphenator hyphenator = new KnuthLiangHyphenator();
         WidthMeasurer widthMeasurer = new AwtWidthMeasurer();
 

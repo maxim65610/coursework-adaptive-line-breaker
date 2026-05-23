@@ -1,7 +1,5 @@
 package hyphenation.impl;
 
-import hyphenation.api.UnicodeAnalyzer;
-
 import java.text.BreakIterator;
 import java.util.HashSet;
 import java.util.Locale;
@@ -15,7 +13,7 @@ import java.util.Set;
  *
  * Использует стандартный BreakIterator Java.
  */
-public class SimpleUnicodeAnalyzer implements UnicodeAnalyzer {
+public class UnicodeAnalyzer implements hyphenation.api.UnicodeAnalyzer {
 
     @Override
     public Set<Integer> findSafeBreakOffsets(String text) {
